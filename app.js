@@ -30,6 +30,14 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+
+// Static File
+// User Static File (Build in middleware)
+app.use(express.static("public"));
+app.use(express.urlencoded({
+  extended: true
+}));
+
 app.use(flash());
 
 // Index (Home) Page
