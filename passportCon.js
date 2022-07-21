@@ -21,9 +21,9 @@ function initialize(passport) {
               throw err;
             }
             if (isMatch) {
-              return done(null, user);
+              return done(null, user, { message: `Success Login as ${user.username}`});
             } else {
-              return done(null, false, { message: "Passwors is incorrect" });
+              return done(null, false, { message: "Password is incorrect" });
             }
           });
         } else {
@@ -45,7 +45,7 @@ function initialize(passport) {
   passport.serializeUser((user, done) => done(null, user.id));
 
   passport.deserializeUser((id, done) => {
-    pool.query(`SELECT * FROM users WHERE id = $1`, [id], (err) => {
+    pool.query(`SELECT * FROM users WHERE id = $1`, [id], (err,results) => {
       if (err) {
         throw error;
       }

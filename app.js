@@ -8,9 +8,9 @@ const passport = require("passport");
 const { pool } = require("./dbCon");
 const bcrypt = require("bcrypt");
 
-const initializePassport = require("./passportCon")
+const initializePassport = require("./passportCon");
 
-initializePassport(passport)
+initializePassport(passport);
 
 const app = express();
 const port = 3000;
@@ -27,13 +27,13 @@ app.use(
     saveUninitialized: false,
   })
 );
-app.use(passport.initialize())
-app.use(passport.session())
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use(flash());
 
 // Index (Home) Page
-app.get("/", (req, res) => {
+app.get("/", checkAuthenticated, (req, res) => {
   res.render("loginPage", {
     title: "Webserver EJS",
     layout: "layouts/login-layout",
@@ -41,26 +41,40 @@ app.get("/", (req, res) => {
 });
 
 // User Session
-app.get("/users/dashboard", (req, res) => {
+app.get("/users/dashboard", checkNotAuthenticated, (req, res) => {
   res.render("dashboard", {
     title: "Dashboard",
     layout: "layouts/main-layout",
+    username: req.user.username,
+    userRole: req.user.role,
   });
 });
 
 // Add User
-app.get("/users/addUser", (req, res) => {
+app.get("/users/addUser", checkNotAuthenticated, (req, res) => {
   res.render("addUser", {
     title: "Add User",
     layout: "layouts/main-layout",
   });
 });
 
-app.post("/", passport.authenticate('local', {
-    successRedirect: '/users/dashboard',
-    failureRedirect: '/',
-    failureFlash: true
-}))
+app.get("/users/logout", (req, res, next) => {
+  req.logout(function (err){
+    if (err) {return next(err)}
+    req.flash("success", "User logged out")
+    res.redirect('/')
+  });
+});
+
+app.post(
+  "/users/login",
+  passport.authenticate("local", {
+    successRedirect: "/users/dashboard",
+    failureRedirect: "/",
+    failureFlash: true,
+    successFlash: true,
+  })
+);
 
 app.post("/users/addUser", async (req, res) => {
   const { username, password, role, password2 } = req.body;
@@ -112,17 +126,16 @@ app.post("/users/addUser", async (req, res) => {
             params: req.body,
           });
         } else {
-            const name = username.toLowerCase()
+          const name = username.toLowerCase();
           pool.query(
             `INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id, password`,
             [name, hashedPassword, role],
             (err, result) => {
-                if(err){
-
-                }
-                console.log(result.rows)
-                req.flash('success', "Successfully created a new user")
-                res.redirect('/users/dashboard')
+              if (err) {
+              }
+              console.log(result.rows);
+              req.flash("success", "Successfully created a new user");
+              res.redirect("/users/dashboard");
             }
           );
         }
@@ -135,6 +148,22 @@ app.use("/", (req, res) => {
   res.status(404);
   res.send("404 Not Found");
 });
+
+
+function checkAuthenticated(req, res, next) {
+  if(req.isAuthenticated()) {
+    return res.redirect('/users/dashboard')
+  }   
+  next()
+}
+
+
+function checkNotAuthenticated(req, res, next) {
+  if(req.isAuthenticated()){
+    return next()
+  }
+  res.redirect('/')
+}
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
